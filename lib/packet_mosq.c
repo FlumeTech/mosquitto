@@ -32,6 +32,7 @@ Contributors:
 #include "memory_mosq.h"
 #include "mqtt3_protocol.h"
 #include "net_mosq.h"
+#include "proxy_mosq.h"
 #include "packet_mosq.h"
 #include "read_handle.h"
 #ifdef WITH_BROKER
@@ -42,6 +43,7 @@ Contributors:
 #  define G_MSGS_SENT_INC(A)
 #  define G_PUB_MSGS_SENT_INC(A)
 #endif
+#include "logging_mosq.h"
 
 int packet__alloc(struct mosquitto__packet *packet)
 {
@@ -95,6 +97,8 @@ void packet__cleanup(struct mosquitto__packet *packet)
 	packet->payload = NULL;
 	packet->to_process = 0;
 	packet->pos = 0;
+	packet->proxy = 0;
+	packet->bufSize = 0;
 }
 
 int packet__queue(struct mosquitto *mosq, struct mosquitto__packet *packet)
@@ -141,7 +145,7 @@ int packet__queue(struct mosquitto *mosq, struct mosquitto__packet *packet)
 #endif
 	}
 
-	if(mosq->in_callback == false && mosq->threaded == mosq_ts_none){
+	if(mosq->in_callback == false && mosq->threaded == false){
 		return packet__write(mosq);
 	}else{
 		return MOSQ_ERR_SUCCESS;
@@ -390,11 +394,18 @@ int packet__read(struct mosquitto *mosq)
 	uint8_t byte;
 	ssize_t read_length;
 	int rc = 0;
+	int proxy;
 
 	if(!mosq) return MOSQ_ERR_INVAL;
 	if(mosq->sock == INVALID_SOCKET) return MOSQ_ERR_NO_CONN;
 	if(mosq->state == mosq_cs_connect_pending){
 		return MOSQ_ERR_SUCCESS;
+	}
+
+	/* PROXY v1: Check for valid proxy header */
+	proxy = proxy__read_header(mosq);
+	if (mosq->in_packet.proxy != PROXY_INVALID && mosq->in_packet.proxy != PROXY_VALID) {
+		return proxy;
 	}
 
 	/* This gets called if pselect() indicates that there is network data
@@ -412,7 +423,14 @@ int packet__read(struct mosquitto *mosq)
 	 * Finally, free the memory and reset everything to starting conditions.
 	 */
 	if(!mosq->in_packet.command){
-		read_length = net__read(mosq, &byte, 1);
+		if (mosq->in_packet.bufSize > 0) {
+			byte = mosq->in_packet.buffer[0];
+			memmove(mosq->in_packet.buffer, mosq->in_packet.buffer + 1, mosq->in_packet.bufSize - 1);
+			read_length = 1;
+			mosq->in_packet.bufSize--;
+		} else {
+			read_length = net__read(mosq, &byte, 1);
+		}
 		if(read_length == 1){
 			mosq->in_packet.command = byte;
 #ifdef WITH_BROKER
@@ -448,7 +466,14 @@ int packet__read(struct mosquitto *mosq)
 	 */
 	if(mosq->in_packet.remaining_count <= 0){
 		do{
-			read_length = net__read(mosq, &byte, 1);
+			if (mosq->in_packet.bufSize > 0) {
+				byte = mosq->in_packet.buffer[0];
+				memmove(mosq->in_packet.buffer, mosq->in_packet.buffer + 1, mosq->in_packet.bufSize - 1);
+				read_length = 1;
+				mosq->in_packet.bufSize--;
+			} else {
+				read_length = net__read(mosq, &byte, 1);
+			}
 			if(read_length == 1){
 				mosq->in_packet.remaining_count--;
 				/* Max 4 bytes length for remaining length as defined by protocol.

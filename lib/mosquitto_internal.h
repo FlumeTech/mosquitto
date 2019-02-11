@@ -142,6 +142,11 @@ struct mosquitto__packet{
 	uint16_t mid;
 	uint8_t command;
 	int8_t remaining_count;
+	/* PROXY v1 */
+	int8_t proxy;
+	/* Packet Buffer */
+	uint8_t buffer[108];
+	uint8_t bufSize;
 };
 
 struct mosquitto_message_all{
@@ -208,7 +213,8 @@ struct mosquitto {
 #endif
 	bool clean_session;
 #ifdef WITH_BROKER
-	bool removed_from_by_id; /* True if removed from by_id hash */
+	char *old_id; /* for when a duplicate client connects, but we still want to
+					 know what the id was */
 	bool is_dropping;
 	bool is_bridge;
 	struct mosquitto__bridge *bridge;
@@ -274,6 +280,11 @@ struct mosquitto {
 	ares_channel achan;
 #  endif
 #endif
+
+	// Support for PROXY v1
+	char *remote_host;
+	int remote_port;
+	int remote_af;
 
 #ifdef WITH_BROKER
 	UT_hash_handle hh_id;
