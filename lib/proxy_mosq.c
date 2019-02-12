@@ -60,6 +60,7 @@ int proxy__read_header(struct mosquitto *mosq) {
 				mosq->in_packet.bufSize += read_length;
 				proxy_out = proxy__verify_header(mosq);
 				if (proxy_out > 0) {
+					log__printf(mosq, MOSQ_LOG_INFO, "New connection has remote address %s on port %i.", mosq->remote_host, mosq->remote_port);
 					return MOSQ_ERR_SUCCESS;
 				} else if (proxy_out < 0) {
 					return MOSQ_ERR_PROXY;
@@ -128,39 +129,45 @@ int8_t proxy__verify_header(struct mosquitto *mosq) {
 	if (mosq->in_packet.bufSize >= PROXY_MAX_SIZE) {
 		return -1;
 	}
-	if (mosq->in_packet.bufSize >= 8 && memcmp(mosq->in_packet.buffer, "PROXY", 5) == 0) {
+	if (mosq->in_packet.bufSize >= 8) {
 		/* Search for end of proxy line */
-		loc = memchr(mosq->in_packet.buffer, PROXY_CR, mosq->in_packet.bufSize - 1);
+		loc = memchr(mosq->in_packet.buffer + 5, PROXY_CR, mosq->in_packet.bufSize - 1);
+		/* If carriage return does not exist, finish reading in line */
 		if (!loc) {
 			return 0;
 		}
+		/* If carriage return exists, but line feed does not, throw error */
 		else if (loc && loc[1] != PROXY_LF) {
 			return -1;
 		}
-		*(loc - 1) = '\0';
-		end = loc + 2;
 		if (mosq->remote_host == NULL) {
+			/* Allocate space for IP string */
 			mosq->remote_host = mosquitto__malloc(PROXY_HOST_SIZE);
 			if (!mosq->remote_host) return MOSQ_ERR_NOMEM;
-		}
-		if (sscanf((char *) mosq->in_packet.buffer, "PROXY %s %s %s %d %d", af, mosq->remote_host, dest, &(mosq->remote_port), &destPort) != 5) {
-			return -1;
-		}
-		if (strcmp(af, "TCP4") == 0) {
-			mosq->remote_af = AF_INET;
-		}
-		else if (strcmp(af, "TCP6") == 0) {
-			mosq->remote_af = AF_INET6;
-		}
-		else {
-			return -1;
+
+			/* Read in the src, dest, src port, and dest port */
+			if (sscanf((char *) mosq->in_packet.buffer, "PROXY %s %s %s %d %d", af, mosq->remote_host, dest, &(mosq->remote_port), &destPort) != 5) {
+				return -1;
+			}
+
+			/* Check that address family is valid */
+			if (strcmp(af, "TCP4") == 0) {
+				mosq->remote_af = AF_INET;
+			}
+			else if (strcmp(af, "TCP6") == 0) {
+				mosq->remote_af = AF_INET6;
+			}
+			else {
+				return -1;
+			}
 		}
 		/* Shift back buffer for extra data */
+		end = loc + 2;
 		memmove(mosq->in_packet.buffer, end, mosq->in_packet.bufSize - ((uint8_t *)end - mosq->in_packet.buffer));
 		mosq->in_packet.bufSize -= (uint8_t *)end - mosq->in_packet.buffer;
 		mosq->in_packet.proxy = PROXY_VALID;
 
-		log__printf(mosq, MOSQ_LOG_INFO, "New connection has remote address %s on port %i.", mosq->remote_host, mosq->remote_port);
+		return 1;
 	}
 
 	return 0;
