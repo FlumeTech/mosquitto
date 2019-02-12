@@ -119,8 +119,10 @@ int proxy__read_header(struct mosquitto *mosq) {
  * out the proxy line from the buffer, leaving any MQTT data still in the buffer.
  */
 int8_t proxy__verify_header(struct mosquitto *mosq) {
+	char af[5];
+	char dest[PROXY_HOST_SIZE];
+	int destPort;
     char *loc;
-    char *loc2;
     char *end;
 
     if (mosq->in_packet.bufSize >= PROXY_MAX_SIZE) {
@@ -137,41 +139,20 @@ int8_t proxy__verify_header(struct mosquitto *mosq) {
 	}
         *(loc - 1) = '\0';
         end = loc + 2;
-        /* Search for first space to get family */
-        loc = memchr(mosq->in_packet.buffer, ' ', mosq->in_packet.bufSize - 1);
-        if (!loc) return -1;
-        *loc = '\0';
-        if (memcmp(loc + 1, "TCP4", 4) == 0) {
-            mosq->remote_af = AF_INET;
-        }
-        else if (memcmp(loc + 1, "TCP6", 4) == 0) {
-            mosq->remote_af = AF_INET6;
-        }
-        else {
-            return -1;
-        }
-        /* Search for second space for src */
-        loc = memchr(mosq->in_packet.buffer, ' ', mosq->in_packet.bufSize - 1);
-        if (!loc) return -1;
-        *loc = '\0';
-        loc2 = memchr(mosq->in_packet.buffer, ' ', mosq->in_packet.bufSize - 1);
-        if (!loc2) return -1;
-        *loc2 = '\0';
 	if (mosq->remote_host == NULL) {
 		mosq->remote_host = mosquitto__malloc(PROXY_HOST_SIZE);
 		if (!mosq->remote_host) return MOSQ_ERR_NOMEM;
 	}
-	if (strcpy(mosq->remote_host, loc + 1) == NULL) {
-	    return -1;
+	if (sscanf((char *) mosq->in_packet.buffer, "PROXY %s %s %s %d %d", af, mosq->remote_host, dest, &(mosq->remote_port), &destPort) != 5) {
+		return -1;
+	}
+        if (strcmp(af, "TCP4") == 0) {
+            mosq->remote_af = AF_INET;
         }
-        /* Get src port */
-        loc = memchr(mosq->in_packet.buffer, ' ', mosq->in_packet.bufSize - 1);
-        if (!loc) return -1;
-        *loc = '\0';
-        loc2 = memchr(mosq->in_packet.buffer, ' ', mosq->in_packet.bufSize - 1);
-        if (!loc2) return -1;
-        *loc2 = '\0';
-        if ((mosq->remote_port = strtol(loc + 1, NULL, 10)) == 0) {
+        else if (strcmp(af, "TCP6") == 0) {
+            mosq->remote_af = AF_INET6;
+        }
+        else {
             return -1;
         }
         /* Shift back buffer for extra data */
