@@ -36,6 +36,7 @@ OBJS=	mosquitto.o \
 		net_mosq_ocsp.o \
 		packet_datatypes.o \
 		packet_mosq.o \
+		proxy_mosq.o \
 		property_broker.o \
 		property_mosq.o \
 		persist_read.o \
@@ -171,6 +172,9 @@ packet_datatypes.o : ../lib/packet_datatypes.c ../lib/packet_mosq.h
 	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
 
 packet_mosq.o : ../lib/packet_mosq.c ../lib/packet_mosq.h
+	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
+
+proxy_mosq.o : ../lib/proxy_mosq.c ../lib/proxy_mosq.h
 	${CROSS_COMPILE}${CC} $(BROKER_CPPFLAGS) $(BROKER_CFLAGS) -c $< -o $@
 
 property_broker.o : property_broker.c mosquitto_broker_internal.h

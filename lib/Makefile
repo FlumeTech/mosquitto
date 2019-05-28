@@ -26,6 +26,7 @@ MOSQ_OBJS=mosquitto.o \
 		  options.o \
 		  packet_datatypes.o \
 		  packet_mosq.o \
+		  proxy_mosq.o \
 		  property_mosq.o \
 		  read_handle.o \
 		  send_connect.o \
@@ -165,6 +166,9 @@ packet_datatypes.o : packet_datatypes.c packet_mosq.h
 	${CROSS_COMPILE}$(CC) $(LIB_CPPFLAGS) $(LIB_CFLAGS) -c $< -o $@
 
 packet_mosq.o : packet_mosq.c packet_mosq.h
+	${CROSS_COMPILE}$(CC) $(LIB_CPPFLAGS) $(LIB_CFLAGS) -c $< -o $@
+
+proxy_mosq.o : proxy_mosq.c proxy_mosq.h
 	${CROSS_COMPILE}$(CC) $(LIB_CPPFLAGS) $(LIB_CFLAGS) -c $< -o $@
 
 property_mosq.o : property_mosq.c property_mosq.h
