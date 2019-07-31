@@ -181,7 +181,6 @@ int log__vprintf(int priority, const char *fmt, va_list va)
 	const char *topic;
 	int syslog_priority;
 	time_t now = time(NULL);
-	static time_t last_flush = 0;
 	char time_buf[50];
 	bool log_timestamp = true;
 	char *log_timestamp_format = NULL;
@@ -317,10 +316,7 @@ int log__vprintf(int priority, const char *fmt, va_list va)
 			}else{
 				fprintf(log_fptr, "%s\n", s);
 			}
-			if(now - last_flush > 1){
-				fflush(log_fptr);
-				last_flush = now;
-			}
+			fflush(int_db.config->log_fptr);
 		}
 		if(log_destinations & MQTT3_LOG_SYSLOG){
 #ifndef WIN32
@@ -373,10 +369,19 @@ int log__printf(struct mosquitto *mosq, int priority, const char *fmt, ...)
 void log__internal(const char *fmt, ...)
 {
 	va_list va;
+	char buf[200];
+	int len;
 
 	va_start(va, fmt);
-	log__vprintf(MOSQ_LOG_INTERNAL, fmt, va);
+	len = vsnprintf(buf, 200, fmt, va);
 	va_end(va);
+
+	if(len >= 200){
+		log__printf(NULL, MOSQ_LOG_INTERNAL, "Internal log buffer too short (%d)", len);
+		return;
+	}
+
+	log__printf(NULL, MOSQ_LOG_INTERNAL, "%s%s%s", "\e[32m", buf, "\e[0m"); 
 }
 
 int mosquitto_log_vprintf(int level, const char *fmt, va_list va)

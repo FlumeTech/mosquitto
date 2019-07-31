@@ -1,7 +1,6 @@
 /*
 Support for PROXY v1 from a load balancer.
 */
-
 #ifndef PROXY_MOSQ_H
 #define PROXY_MOSQ_H
 

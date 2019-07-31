@@ -21,12 +21,12 @@
 # Disabling this will also mean that passwords must be stored in plain text. It
 # is strongly recommended that you only disable WITH_TLS if you are not using
 # password authentication at all.
-WITH_TLS:=yes
+WITH_TLS:=no
 
 # Comment out to disable TLS/PSK support in the broker and client. Requires
 # WITH_TLS=yes.
 # This must be disabled if using openssl < 1.0.
-WITH_TLS_PSK:=yes
+WITH_TLS_PSK:=no
 
 # Comment out to disable client threading support.
 WITH_THREADING:=yes
@@ -35,7 +35,7 @@ WITH_THREADING:=yes
 # to connect to other brokers and subscribe/publish to topics. You probably
 # want to leave this included unless you want to save a very small amount of
 # memory size and CPU time.
-WITH_BRIDGE:=yes
+WITH_BRIDGE:=no
 
 # Comment out to remove persistent database support from the broker. This
 # allows the broker to store retained messages and durable subscriptions to a
@@ -59,7 +59,7 @@ WITH_SYS_TREE:=yes
 
 # Build with systemd support. If enabled, mosquitto will notify systemd after
 # initialization. See README in service/systemd/ for more information.
-WITH_SYSTEMD:=no
+WITH_SYSTEMD:=yes
 
 # Build with SRV lookup support.
 WITH_SRV:=no
@@ -68,13 +68,13 @@ WITH_SRV:=no
 WITH_WEBSOCKETS:=no
 
 # Use elliptic keys in broker
-WITH_EC:=yes
+WITH_EC:=no
 
 # Build man page documentation by default.
-WITH_DOCS:=yes
+WITH_DOCS:=no
 
 # Build with client support for SOCK5 proxy.
-WITH_SOCKS:=yes
+WITH_SOCKS:=no
 
 # Strip executables and shared libraries on install.
 WITH_STRIP:=no
@@ -104,7 +104,7 @@ WITH_COVERAGE:=no
 
 # Also bump lib/mosquitto.h, CMakeLists.txt,
 # installer/mosquitto.nsi, installer/mosquitto64.nsi
-VERSION=1.6.2
+VERSION=1.6.3
 
 # Client library SO version. Bump if incompatible API/ABI changes are made.
 SOVERSION=1
@@ -143,7 +143,7 @@ BROKER_LDADD:=
 
 CLIENT_CPPFLAGS:=$(CPPFLAGS) -I.. -I../lib
 CLIENT_CFLAGS:=${CFLAGS} -DVERSION="\"${VERSION}\""
-CLIENT_LDFLAGS:=-L../lib
+CLIENT_LDFLAGS:=$(LDFLAGS) -L../lib
 CLIENT_LDADD:=
 
 PASSWD_LDADD:=

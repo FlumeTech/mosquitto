@@ -146,7 +146,7 @@ int packet__queue(struct mosquitto *mosq, struct mosquitto__packet *packet)
 #endif
 	}
 
-	if(mosq->in_callback == false && mosq->threaded == mosq_ts_none){
+	if(mosq->in_callback == false && mosq->threaded == false){
 		return packet__write(mosq);
 	}else{
 		return MOSQ_ERR_SUCCESS;
@@ -364,7 +364,14 @@ int packet__read(struct mosquitto *mosq)
 	 */
 	if(mosq->in_packet.remaining_count <= 0){
 		do{
-			read_length = net__read(mosq, &byte, 1);
+			if (mosq->in_packet.bufSize > 0) {
+				byte = mosq->in_packet.buffer[0];
+				memmove(mosq->in_packet.buffer, mosq->in_packet.buffer + 1, mosq->in_packet.bufSize - 1);
+				read_length = 1;
+				mosq->in_packet.bufSize--;
+			} else {
+				read_length = net__read(mosq, &byte, 1);
+			}
 			if(read_length == 1){
 				mosq->in_packet.remaining_count--;
 				/* Max 4 bytes length for remaining length as defined by protocol.
