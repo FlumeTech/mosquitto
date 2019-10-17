@@ -30,6 +30,7 @@ set (MOSQ_SRCS
 	net.c
 	../lib/net_mosq_ocsp.c ../lib/net_mosq.c ../lib/net_mosq.h
 	../lib/packet_datatypes.c
+	../lib/proxy_mosq.c ../lib/proxy_mosq.h
 	../lib/packet_mosq.c ../lib/packet_mosq.h
 	persist_read_v234.c persist_read_v5.c persist_read.c
 	persist_write_v5.c persist_write.c

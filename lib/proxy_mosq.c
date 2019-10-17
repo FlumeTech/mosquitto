@@ -131,13 +131,13 @@ int8_t proxy__verify_header(struct mosquitto *mosq) {
 	}
 	if (mosq->in_packet.bufSize >= 8) {
 		/* Search for end of proxy line */
-		loc = memchr(mosq->in_packet.buffer + 5, PROXY_CR, mosq->in_packet.bufSize - 1);
+		loc = memchr(mosq->in_packet.buffer + 5, PROXY_LF, mosq->in_packet.bufSize - 1);
 		/* If carriage return does not exist, finish reading in line */
 		if (!loc) {
 			return 0;
 		}
 		/* If carriage return exists, but line feed does not, throw error */
-		else if (loc && loc[1] != PROXY_LF) {
+		else if (loc && loc[-1] != PROXY_CR) {
 			return -1;
 		}
 		if (mosq->remote_host == NULL) {
@@ -162,7 +162,7 @@ int8_t proxy__verify_header(struct mosquitto *mosq) {
 			}
 		}
 		/* Shift back buffer for extra data */
-		end = loc + 2;
+		end = loc + 1;
 		memmove(mosq->in_packet.buffer, end, mosq->in_packet.bufSize - ((uint8_t *)end - mosq->in_packet.buffer));
 		mosq->in_packet.bufSize -= (uint8_t *)end - mosq->in_packet.buffer;
 		mosq->in_packet.proxy = PROXY_VALID;

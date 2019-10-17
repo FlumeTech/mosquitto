@@ -33,6 +33,7 @@ set(C_SRC
 	net_mosq_ocsp.c net_mosq.c net_mosq.h
 	options.c
 	packet_datatypes.c
+	proxy_mosq.c proxy_mosq.h
 	packet_mosq.c packet_mosq.h
 	property_mosq.c property_mosq.h
 	read_handle.c read_handle.h
