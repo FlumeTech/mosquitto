@@ -63,7 +63,7 @@ int proxy__read_header(struct mosquitto *mosq) {
 				mosq->in_packet.bufSize += read_length;
 				proxy_out = proxy__verify_header(mosq);
 				if (proxy_out > 0) {
-					log__printf(mosq, MOSQ_LOG_INFO, "New connection has remote address %s on port %i.", mosq->remote_host, mosq->remote_port);
+					log__printf(mosq, MOSQ_LOG_NOTICE, "New connection has remote address %s on port %i.", mosq->remote_host, mosq->remote_port);
 					return MOSQ_ERR_SUCCESS;
 				} else if (proxy_out < 0) {
 					return MOSQ_ERR_PROXY;

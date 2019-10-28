@@ -181,6 +181,7 @@ int log__vprintf(int priority, const char *fmt, va_list va)
 	const char *topic;
 	int syslog_priority;
 	time_t now = time(NULL);
+	static time_t last_flush = 0;
 	char time_buf[50];
 	bool log_timestamp = true;
 	char *log_timestamp_format = NULL;
@@ -316,7 +317,10 @@ int log__vprintf(int priority, const char *fmt, va_list va)
 			}else{
 				fprintf(log_fptr, "%s\n", s);
 			}
-			fflush(int_db.config->log_fptr);
+			if(int_db.config->log_type & MOSQ_LOG_DEBUG || now - last_flush > 1){
+				fflush(log_fptr);
+				last_flush = now;
+			}
 		}
 		if(log_destinations & MQTT3_LOG_SYSLOG){
 #ifndef WIN32
