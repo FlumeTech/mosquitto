@@ -35,7 +35,7 @@ Support for PROXY v1 from a load balancer.
  * of a PUBREC command, which is always 4 bytes. 
  */
 int proxy__read_header(struct mosquitto *mosq) {
-	uint8_t byte;
+	uint8_t bytes[2];
 	uint8_t header[5] = {0x50, 0x52, 0x4f, 0x58, 0x59};
 	ssize_t read_length;
 	int8_t proxy_out;
@@ -50,10 +50,13 @@ int proxy__read_header(struct mosquitto *mosq) {
 				if (PROXY_MIN_SIZE - mosq->in_packet.bufSize > 0) {
 					read_length = net__read(mosq, mosq->in_packet.buffer + mosq->in_packet.bufSize, PROXY_MIN_SIZE - mosq->in_packet.bufSize);
 				} else {
-					read_length = net__read(mosq, mosq->in_packet.buffer + mosq->in_packet.bufSize, 1);
+					/* Read 3 bytes at a time to reduce system calls. */
+					read_length = net__read(mosq, mosq->in_packet.buffer + mosq->in_packet.bufSize, 3);
 				}
+			} else if (mosq->in_packet.proxy == -1) {
+				read_length = net__read(mosq, bytes, 1);
 			} else {
-				read_length = net__read(mosq, &byte, 1);
+				read_length = net__read(mosq, bytes, 2);
 			}
 			/* If reading the proxy and we actually got some bytes */
 			if (mosq->in_packet.proxy >= PROXY_READING && read_length > 0) {
@@ -68,10 +71,10 @@ int proxy__read_header(struct mosquitto *mosq) {
 			}
 			else if (read_length == 1) {
 				/* Throw the byte into the buffer */
-				mosq->in_packet.buffer[mosq->in_packet.bufSize] = byte;
+				mosq->in_packet.buffer[mosq->in_packet.bufSize] = bytes[0];
 				mosq->in_packet.bufSize++;
 				/* Check if byte matches header */
-				if (byte == header[mosq->in_packet.proxy * -1]) {
+				if (bytes[0] == header[mosq->in_packet.proxy * -1]) {
 					mosq->in_packet.proxy--;
 				}
 				/* Proxy exists if first two bytes match, explained above */
@@ -83,6 +86,17 @@ int proxy__read_header(struct mosquitto *mosq) {
 					mosq->in_packet.proxy = PROXY_INVALID;
 				}
 			}
+			else if (read_length == 2) {
+				/* Throw the bytes into the buffer */
+				memcpy(mosq->in_packet.buffer, bytes, 2);
+				mosq->in_packet.bufSize += 2;
+				/* Check if bytes matches header */
+				if (memcmp(header, bytes, 2) == 0) {
+					mosq->in_packet.proxy = PROXY_READING;
+				} else {
+					mosq->in_packet.proxy = PROXY_INVALID;
+				}
+			}
 			else {
 			#ifdef WIN32
 				errno = WSAGetLastError();
@@ -90,10 +104,10 @@ int proxy__read_header(struct mosquitto *mosq) {
 				if(errno == EAGAIN || errno == COMPAT_EWOULDBLOCK){
 					if(mosq->in_packet.to_process > 1000){
 						/* Update last_msg_in time if more than 1000 bytes left to
-							* receive. Helps when receiving large messages.
-							* This is an arbitrary limit, but with some consideration.
-							* If a client can't send 1000 bytes in a second it
-							* probably shouldn't be using a 1 second keep alive. */
+						 * receive. Helps when receiving large messages.
+						 * This is an arbitrary limit, but with some consideration.
+						 * If a client can't send 1000 bytes in a second it
+						 * probably shouldn't be using a 1 second keep alive. */
 						pthread_mutex_lock(&mosq->msgtime_mutex);
 						mosq->last_msg_in = mosquitto_time();
 						pthread_mutex_unlock(&mosq->msgtime_mutex);
